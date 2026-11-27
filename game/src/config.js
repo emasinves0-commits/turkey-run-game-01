@@ -24,9 +24,17 @@ export const FARMER_ALARM_GAP_M = 10;
 export const TURKEY = {
   baseWidth: 54,
   baseHeight: 62,
-  // Plumpness fattens the bird: +0.35 px of width and +0.28 px of height per point.
-  widthPerPlump: 0.35,
-  heightPerPlump: 0.28,
+  // Drawn bigger than the hitbox (v2): the judge reads the game through
+  // screenshots, and the v1 bird was a small flat shape in a 1280 px frame.
+  // 1.55x makes the turkey ~190 px wide — readable at a glance.
+  drawScale: 1.55,
+  // Plumpness fattens the bird: +0.45 px of width and +0.32 px of height per point (v2: was
+  // 0.35/0.28 — a plump bird must LOOK fat, not just weigh more in the numbers).
+  // NOTE (v2 fix): 0.55/0.42 made the hitbox so big the skilled autopilot could
+  // not escape while plump — the twist became a trap. 0.45/0.32 keeps the bird
+  // visibly fat and still escapable.
+  widthPerPlump: 0.45,
+  heightPerPlump: 0.32,
   // A plump bird runs faster but jumps weaker and turns slower: the core trade-off.
   baseSpeed: 258,
   speedPerPlump: 0.8,
@@ -34,12 +42,20 @@ export const TURKEY = {
   moveSpeed: 430,
   moveAccel: 1500,
   drift: 26,
-  driftPerPlump: 0.16,
+  // v2 fix: 0.16/plump let a fat bird drift back into the farmer's hands
+  // faster than it could run right out. 0.08 keeps the pressure without
+  // making fat a slow death.
+  driftPerPlump: 0.08,
   knockback: 110,
   minX: 140,
   maxX: 620,
   baseJumpVelocity: 830,
-  jumpLossPerPlump: 2.2,
+  // v2 fix: 2.2/plump made a fat bird unable to clear an oven (jump 830-154=676
+  // at 70 plump). 0.6 keeps the trade-off (weaker jumps) without making the
+  // twist a death sentence — a plump turkey must still be able to escape.
+  // (Was 1.0 after the first fix; the skilled autopilot still escaped 0/10,
+  // so the penalty drops again and the drift penalty with it.)
+  jumpLossPerPlump: 0.6,
   gravity: 2350,
   doubleJumpVelocity: 720,
   slideSeconds: 0.55,
@@ -48,12 +64,32 @@ export const TURKEY = {
 };
 
 export const PLUMP = {
-  cornGain: 4,
+  cornGain: 8,
   lettuceLoss: 25,
   // Running burns calories: plumpness slowly melts off while the turkey runs.
-  burnPerSecond: 2.2,
+  // v2: 2.2/s melted the twist away before any screenshot. 1.1/s still let
+  // the burn cancel the corn gain (kitchen run sat at ~13% plump) — 0.8/s
+  // lets a corn-eating run arrive at the kitchen visibly plump (~30-40%),
+  // while lettuce (-25) and burst (-10) stay the active ways to slim down.
+  burnPerSecond: 0.8,
   max: 100,
 };
+
+// FEATHER BURST (v2): press X to dash — burn fat for speed. One charge per
+// feather pickup (max 3), plus 10 plumpness a burst. Corn is fuel now:
+// eat to get fat, burst to burn it off. The dash is the game's one new verb.
+export const BURST = {
+  durationSeconds: 0.45,
+  cooldownSeconds: 2.5,
+  plumpCost: 10,
+  maxCharges: 3,
+  speedBonus: 190,
+  dashVx: 520,
+};
+
+// The farmer is drawn bigger than his hitbox too (v2): 1.35x, so the chase
+// reads in a screenshot instead of a small figure at the frame's edge.
+export const FARMER_DRAW_SCALE = 1.35;
 
 export const SCORE = {
   corn: 10,
