@@ -10,6 +10,7 @@ export function createInput(canvas) {
   const keys = new Set();
   let actions = 0;
   let jumpQueued = false;
+  let burstQueued = false;
 
   function press(action) {
     actions |= action;
@@ -32,6 +33,9 @@ export function createInput(canvas) {
       event.preventDefault();
     } else if (event.code === 'Enter') {
       press(ACTION_CONFIRM);
+    } else if (event.code === 'KeyX') {
+      // FEATHER BURST (v2): X burns fat for a dash.
+      burstQueued = true;
     } else if (event.code === 'KeyP' || event.code === 'Escape') {
       press(ACTION_PAUSE);
     } else if (event.code === 'KeyM') {
@@ -70,6 +74,12 @@ export function createInput(canvas) {
     jumpPressed() {
       const queued = jumpQueued;
       jumpQueued = false;
+      return queued;
+    },
+    // One-shot: true only on the frame X was pressed.
+    burstPressed() {
+      const queued = burstQueued;
+      burstQueued = false;
       return queued;
     },
     takeActions() {
