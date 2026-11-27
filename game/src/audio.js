@@ -95,6 +95,11 @@ export function createAudio() {
       tone({ from: 880, seconds: 0.1, volume: 0.3, delay: 0.08 });
       tone({ from: 1108, seconds: 0.16, volume: 0.3, delay: 0.16 });
     },
+    // FEATHER BURST (v2): a rising whoosh + a chirp.
+    burst() {
+      noise({ seconds: 0.3, volume: 0.35, from: 600, to: 3200 });
+      tone({ from: 880, to: 1560, seconds: 0.18, volume: 0.3 });
+    },
     nearMiss() {
       tone({ type: 'triangle', from: 1400, to: 900, seconds: 0.12, volume: 0.25 });
     },
