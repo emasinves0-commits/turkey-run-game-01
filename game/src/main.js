@@ -8,7 +8,7 @@
 // window.__shotReady for a screenshot.
 import { BEST_KEY, LIVES, STEP } from './config.js';
 import { createRandom } from './random.js';
-import { createWorld, EVENT_CORN, EVENT_ESCAPED, EVENT_FEATHER, EVENT_FOUND, EVENT_HIDE, EVENT_HIT, EVENT_NEAR, EVENT_OVER, EVENT_STAGE } from './world.js';
+import { createWorld, EVENT_BURST, EVENT_CORN, EVENT_ESCAPED, EVENT_FEATHER, EVENT_FOUND, EVENT_HIDE, EVENT_HIT, EVENT_NEAR, EVENT_OVER, EVENT_STAGE } from './world.js';
 import { ACTION_CONFIRM, ACTION_JUMP, ACTION_MUTE, ACTION_PAUSE, createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createRenderer, SCREEN_ESCAPED, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
@@ -119,9 +119,11 @@ function runGame() {
     if (jumped) audio.jump(world.state.turkey.jumps === 1);
     const events = world.step(STEP, {
       jump: jumped,
+      burst: input.burstPressed(),
       slide: input.sliding(),
       direction: input.direction(),
     }, false);
+    if (events & EVENT_BURST) audio.burst();
     if (events & EVENT_CORN) audio.corn();
     if (events & EVENT_FEATHER) audio.feather();
     if (events & EVENT_NEAR) audio.nearMiss();
