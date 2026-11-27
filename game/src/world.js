@@ -11,7 +11,7 @@
 // pressure drifts it back. Eating corn fattens the bird — faster scroll, weaker jump,
 // slower turns, a bigger target — so every corn is a choice.
 import {
-  ESCAPE_DISTANCE_M, FARMER_MAX_GAP_M, FARMER_TAUNTS,
+  BURST, ESCAPE_DISTANCE_M, FARMER_MAX_GAP_M, FARMER_TAUNTS,
   FIELD, HIDE, KNIFE, LIVES, OBSTACLE, OVEN_JET, PLUMP, PX_PER_M, SCORE,
   STAGE_LENGTH_M, STAGES, TURKEY,
 } from './config.js';
@@ -39,8 +39,10 @@ export const EVENT_STAGE = 32;
 export const EVENT_NEAR = 64;
 export const EVENT_FOUND = 128;
 export const EVENT_FEATHER = 256;
+export const EVENT_BURST = 512;
 
 const POOL_SIZE = 96;
+const BURST_PARTICLES = 24;
 
 /** Metres of farmer gap per pixel of screen lead. */
 const GAP_PX_PER_M = 8;
@@ -62,8 +64,12 @@ export function createWorld(random) {
       vx: 0, vy: 0, t: 0, phase: 0, scored: false, targetX: 0, startX: 0, startY: 0,
     });
   }
+  const burstParticles = [];
+  for (let index = 0; index < BURST_PARTICLES; index += 1) {
+    burstParticles.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, rot: 0 });
+  }
   const state = {
-    turkey, entities,
+    turkey, entities, burstParticles,
     distanceM: 0, score: 0, lives: LIVES, plumpness: 0,
     farmerGapM: 20, farmerState: 'chase',
     farmerTaunt: '', farmerTauntTimer: 0, tauntTimer: 5,
@@ -71,6 +77,9 @@ export function createWorld(random) {
     spawnTimer: 1.2, knifeTimer: KNIFE.throwInterval, lettuceTimer: 22, gravyTimer: 38,
     banner: '', bannerTimer: 0, shake: 0, over: false, escaped: false, overReason: '',
     nearMissText: '', nearMissTimer: 0,
+    // v2: the burst economy + a real corn counter (the v1 escaped screen
+    // derived "corn eaten" from plumpness and read 0 on a full run).
+    cornEaten: 0, burstCharges: 1, burstTimer: 0, burstCooldown: 0,
   };
 
   function turkeyBox() {
@@ -130,6 +139,11 @@ export function createWorld(random) {
     state.overReason = '';
     state.nearMissText = '';
     state.nearMissTimer = 0;
+    state.cornEaten = 0;
+    state.burstCharges = 1;
+    state.burstTimer = 0;
+    state.burstCooldown = 0;
+    for (const p of burstParticles) p.active = false;
     syncFarmerGap();
   }
 
@@ -216,7 +230,10 @@ export function createWorld(random) {
         spawnGround(KIND_PITCHFORK, x + 170, OBSTACLE.pitchforkWidth, OBSTACLE.pitchforkHeight);
       }
     } else {
-      if (roll < 0.12) {
+      // The kitchen is full of food: corn is twice as common here as in the
+      // farmyard (v2) — the temptation that fattens the bird is strongest
+      // where the oven is hottest, so a kitchen run can arrive visibly plump.
+      if (roll < 0.22) {
         spawnCornRow(x, 3, true);
       } else if (roll < 0.3) {
         const oven = spawnGround(KIND_OVEN, x, OBSTACLE.ovenWidth, 118);
@@ -283,12 +300,15 @@ export function createWorld(random) {
     entity.active = false;
     if (entity.kind === KIND_CORN) {
       state.score += SCORE.corn;
+      state.cornEaten += 1;
       state.plumpness = Math.min(PLUMP.max, state.plumpness + PLUMP.cornGain);
       turkey.x = Math.min(TURKEY.maxX, turkey.x + 6);
       syncFarmerGap();
       events |= EVENT_CORN;
     } else if (entity.kind === KIND_FEATHER) {
       state.score += SCORE.feather;
+      // v2: a feather is fuel for a burst, not just points.
+      state.burstCharges = Math.min(BURST.maxCharges, state.burstCharges + 1);
       events |= EVENT_FEATHER;
     } else if (entity.kind === KIND_LETTUCE) {
       state.plumpness = Math.max(0, state.plumpness - PLUMP.lettuceLoss);
@@ -316,8 +336,45 @@ export function createWorld(random) {
     if (state.nearMissTimer > 0) state.nearMissTimer -= dt;
     if (state.farmerTauntTimer > 0) state.farmerTauntTimer -= dt;
 
-    // The scroll speed is the run itself: a plumper bird scrolls faster.
-    state.speed = TURKEY.baseSpeed + state.plumpness * TURKEY.speedPerPlump;
+    // --- FEATHER BURST (v2): X spends a feather charge + 10 plumpness for a
+    // 0.45 s dash. Corn is fuel now — eat to get fat, burst to burn it off.
+    if (state.burstCooldown > 0) state.burstCooldown -= dt;
+    if (state.burstTimer > 0) state.burstTimer -= dt;
+    if (input.burst && state.burstCharges > 0 && state.burstCooldown <= 0
+      && !turkey.hiding && !state.over && !harmless) {
+      state.burstCharges -= 1;
+      state.burstTimer = BURST.durationSeconds;
+      state.burstCooldown = BURST.cooldownSeconds;
+      state.plumpness = Math.max(0, state.plumpness - BURST.plumpCost);
+      let spawned = 0;
+      for (const p of burstParticles) {
+        if (spawned >= 10) break;
+        if (p.active) continue;
+        p.active = true;
+        p.x = turkey.x + 10 + random() * 30;
+        p.y = turkey.y + 10 + random() * 50;
+        p.vx = -(120 + random() * 180);
+        p.vy = -40 - random() * 80;
+        p.life = 1;
+        p.rot = random() * Math.PI * 2;
+        spawned += 1;
+      }
+      events |= EVENT_BURST;
+    }
+    for (const p of burstParticles) {
+      if (!p.active) continue;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 260 * dt;
+      p.rot += dt * 3;
+      p.life -= dt / 0.8;
+      if (p.life <= 0) p.active = false;
+    }
+
+    // The scroll speed is the run itself: a plumper bird scrolls faster,
+    // and a burst adds a surge on top.
+    state.speed = TURKEY.baseSpeed + state.plumpness * TURKEY.speedPerPlump
+      + (state.burstTimer > 0 ? BURST.speedBonus : 0);
 
     if (turkey.hiding) {
       turkey.hideTimer -= dt;
@@ -330,7 +387,9 @@ export function createWorld(random) {
       }
     } else {
       // --- horizontal movement: run right to gain on the farmer, drift back ---
-      const moveAccel = TURKEY.moveAccel - state.plumpness * 4;
+      // v2 fix: the turn penalty was 4/plump — a fat bird could not run right
+      // out of trouble. 2/plump keeps the trade-off (slower turns) escapable.
+      const moveAccel = TURKEY.moveAccel - state.plumpness * 2;
       const moveSpeed = TURKEY.moveSpeed * (turkey.inMud ? TURKEY.mudSlowFactor : 1);
       const drift = (TURKEY.drift + state.plumpness * TURKEY.driftPerPlump)
         * (turkey.inMud ? 1.5 : 1);
@@ -338,6 +397,8 @@ export function createWorld(random) {
       else if (input.direction === -1) turkey.vx = Math.max(-moveSpeed * 0.7, turkey.vx - moveAccel * dt);
       else if (turkey.vx > 0) turkey.vx = Math.max(0, turkey.vx - moveAccel * 1.4 * dt);
       else if (turkey.vx < 0) turkey.vx = Math.min(0, turkey.vx + moveAccel * 1.4 * dt);
+      // A burst shoves the bird right, past the normal run speed.
+      if (state.burstTimer > 0) turkey.vx = Math.max(turkey.vx, BURST.dashVx);
       turkey.x += (turkey.vx - drift) * dt;
       turkey.x = Math.max(TURKEY.minX, Math.min(TURKEY.maxX, turkey.x));
       syncFarmerGap();
@@ -582,5 +643,7 @@ export function createWorld(random) {
   }
 
   reset();
-  return { state, reset, step, turkeyBox };
+  // `random` is exposed so the screenshot stager can pick a taunt from the
+  // game's own list with the same seeded generator (deterministic per seed).
+  return { state, reset, step, turkeyBox, random };
 }
