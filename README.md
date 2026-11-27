@@ -1,8 +1,8 @@
 # GOBBLE & GO — The Great Turkey Escape
 
-[![make.fun bounty](https://img.shields.io/badge/make.fun-bounty-orange)](https://make.fun/bounty/turkey-run-game-01)
-[![make.fun entry](https://img.shields.io/badge/make.fun-entry-blue)](https://make.fun/bounty/turkey-run-game-01)
-[![make.fun game](https://img.shields.io/badge/make.fun-turkey--escape--game-green)](https://make.fun/bounty/turkey-run-game-01)
+[![make.fun · turkey-run-game-01](https://make.fun/badge/turkey-run-game-01.svg)](https://make.fun/bounty/turkey-run-game-01?utm_source=github&utm_medium=readme&utm_campaign=turkey-run-game-01)
+[![rank](https://make.fun/badge/turkey-run-game-01/emasinves0-commits/turkey-run-game-01/rank.svg)](https://make.fun/bounty/turkey-run-game-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=turkey-run-game-01)
+[![reward](https://make.fun/badge/turkey-run-game-01/emasinves0-commits/turkey-run-game-01/reward.svg)](https://make.fun/bounty/turkey-run-game-01?utm_source=github&utm_medium=readme&utm_campaign=turkey-run-game-01)
 
 A complete turkey escape game for the [make.fun bounty "Make the best turkey escape game"](https://make.fun/bounty/turkey-run-game-01): Gus the turkey runs from Jed the farmer across the farmyard, through the barn and into the kitchen — 2400 m to the forest and freedom — dodging fences, rolling pumpkins, pitchforks, thrown carving knives and a lit oven with timed fire jets.
 
