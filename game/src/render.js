@@ -2,7 +2,7 @@
 // autumn farmyard, the dusk barn, the night kitchen, the turkey (who fattens as he
 // eats), the farmer on his heels, the hazards, the HUD and all five screens.
 // No image files: the art is code, so the game loads nothing over the network.
-import { FARMER_ALARM_GAP_M, FIELD, FONT, PALETTE, STAGES } from './config.js';
+import { FARMER_ALARM_GAP_M, FARMER_DRAW_SCALE, FIELD, FONT, PALETTE, STAGES, TURKEY } from './config.js';
 import {
   KIND_CORN, KIND_COUNTER, KIND_FEATHER, KIND_FENCE, KIND_GRAVY, KIND_HAY,
   KIND_KNIFE_FALL, KIND_KNIFE_THROWN, KIND_LETTUCE, KIND_MUD, KIND_OVEN,
@@ -93,16 +93,32 @@ export function createRenderer(canvas) {
     sky.addColorStop(1, palette.skyBottom);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, FIELD.width, FIELD.groundY + 2);
-    // Sun or moon.
+    // Sun or moon. v2: bigger (44→56) — the v1 sky was a huge empty orange void.
     ctx.fillStyle = palette.sun;
-    ellipse(1060, 108, 44, 44);
+    ellipse(1060, 108, 56, 56);
     ctx.fill();
     ctx.fillStyle = 'rgba(255, 217, 122, 0.25)';
-    ellipse(1060, 108, 62, 62);
+    ellipse(1060, 108, 78, 78);
     ctx.fill();
     drawClouds(scrollX, '#ffffff', 0.5);
     drawHills(scrollX, palette.hillsFar, 560, 26);
     drawHills(scrollX, palette.hills, 600, 30);
+    // v2: a background fence along the far hill — the v1 midground was empty.
+    ctx.strokeStyle = palette.fence;
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 9; i += 1) {
+      const fx = ((i * 180 - scrollX * 0.5) % 1620 + 1620) % 1620 - 90;
+      ctx.beginPath();
+      ctx.moveTo(fx, 566);
+      ctx.lineTo(fx, 596);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(0, 574);
+    ctx.lineTo(FIELD.width, 574);
+    ctx.moveTo(0, 588);
+    ctx.lineTo(FIELD.width, 588);
+    ctx.stroke();
     // The farmhouse and barn slide past in the distance.
     for (let i = 0; i < 3; i += 1) {
       const bx = ((i * 640 - scrollX * 0.5) % 1920 + 1920) % 1920 - 320;
@@ -118,8 +134,8 @@ export function createRenderer(canvas) {
       ctx.fillStyle = '#ffd97a';
       ctx.fillRect(bx + 58, 510, 34, 40);
     }
-    // Trees.
-    for (let i = 0; i < 8; i += 1) {
+    // Trees. v2: 8→12 — the v1 farmyard was sparse.
+    for (let i = 0; i < 12; i += 1) {
       const tx = ((i * 257 - scrollX * 0.45) % 1400 + 1400) % 1400 - 60;
       const th = 66 + (i % 3) * 14;
       ctx.fillStyle = '#5a3a22';
@@ -137,8 +153,8 @@ export function createRenderer(canvas) {
     ctx.fillRect(0, FIELD.groundY, FIELD.width, FIELD.height - FIELD.groundY);
     ctx.fillStyle = palette.groundTop;
     ctx.fillRect(0, FIELD.groundY, FIELD.width, 10);
-    // Scrolling ground marks: grass tufts, straw, fallen leaves.
-    for (let i = 0; i < 26; i += 1) {
+    // Scrolling ground marks: grass tufts, straw, fallen leaves. v2: 26→36.
+    for (let i = 0; i < 36; i += 1) {
       const gx = ((i * 173 - scrollX) % 1400 + 1400) % 1400 - 60;
       const gy = FIELD.groundY + 26 + (i % 4) * 18;
       ctx.strokeStyle = palette.grass;
@@ -159,10 +175,12 @@ export function createRenderer(canvas) {
 
   function drawKitchenBackground(state) {
     const scrollX = state.distanceM * 12;
-    ctx.fillStyle = '#4a2f26';
+    // v2: the kitchen was a dark muddy brown — plates read as abstract blobs.
+    // Warm cream walls + a tiled band so the room reads as a kitchen at a glance.
+    ctx.fillStyle = '#6b4232';
     ctx.fillRect(0, 0, FIELD.width, FIELD.groundY + 2);
     // Warm wall with a night window.
-    ctx.fillStyle = '#5e3a2c';
+    ctx.fillStyle = '#7a4a34';
     ctx.fillRect(0, 0, FIELD.width, 330);
     ctx.fillStyle = '#2b2b44';
     rr(120, 60, 260, 220, 12);
@@ -170,22 +188,74 @@ export function createRenderer(canvas) {
     ctx.fillStyle = '#e8d8a0';
     ellipse(250, 140, 34, 34);
     ctx.fill();
-    ctx.fillStyle = '#5e3a2c';
+    ctx.fillStyle = '#7a4a34';
     ctx.fillRect(244, 60, 12, 220);
     ctx.fillRect(120, 164, 260, 12);
-    // Shelves with plates and jars.
+    // Cream tile band on the lower wall (grout lines so it reads as tiles).
+    ctx.fillStyle = '#d8b98a';
+    ctx.fillRect(0, 330, FIELD.width, FIELD.groundY - 330);
+    ctx.strokeStyle = 'rgba(120, 80, 40, 0.4)';
+    ctx.lineWidth = 2;
+    for (let x = ((-scrollX * 0.4) % 88 + 88) % 88 - 88; x < FIELD.width; x += 88) {
+      ctx.beginPath();
+      ctx.moveTo(x, 330);
+      ctx.lineTo(x, FIELD.groundY);
+      ctx.stroke();
+    }
+    for (let y = 330; y < FIELD.groundY; y += 72) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(FIELD.width, y);
+      ctx.stroke();
+    }
+    // Shelves with readable things on them: a plate (rim + dish), a pie, jars, a pumpkin.
     for (let s = 0; s < 2; s += 1) {
       const sy = 330 + s * 110;
       ctx.fillStyle = '#3a241c';
       ctx.fillRect(620, sy, 560, 14);
       for (let i = 0; i < 5; i += 1) {
         const px = 650 + i * 105;
-        ctx.fillStyle = ['#e8e0d0', '#c96f2e', '#7ac74f', '#3a5a8a', '#d8b25e'][i];
-        ellipse(px, sy - 14, 26, 20);
-        ctx.fill();
+        if (i === 0) {
+          // Plate: white rim, pale dish.
+          ctx.fillStyle = '#f2ead8';
+          ellipse(px, sy - 14, 26, 20);
+          ctx.fill();
+          ctx.fillStyle = '#d8cbb2';
+          ellipse(px, sy - 14, 17, 12);
+          ctx.fill();
+        } else if (i === 1) {
+          // Pumpkin pie: orange wedge on a plate.
+          ctx.fillStyle = '#f2ead8';
+          ellipse(px, sy - 12, 24, 14);
+          ctx.fill();
+          ctx.fillStyle = '#d2691e';
+          ellipse(px, sy - 18, 18, 12);
+          ctx.fill();
+        } else if (i === 2) {
+          // Green jar with a lid.
+          ctx.fillStyle = '#7ac74f';
+          rr(px - 14, sy - 34, 28, 24, 6);
+          ctx.fill();
+          ctx.fillStyle = '#5a9a3a';
+          ctx.fillRect(px - 14, sy - 40, 28, 8);
+        } else if (i === 3) {
+          // Blue jar with a lid.
+          ctx.fillStyle = '#3a5a8a';
+          rr(px - 14, sy - 34, 28, 24, 6);
+          ctx.fill();
+          ctx.fillStyle = '#2a4060';
+          ctx.fillRect(px - 14, sy - 40, 28, 8);
+        } else {
+          // Small pumpkin.
+          ctx.fillStyle = '#d2691e';
+          ellipse(px, sy - 16, 20, 17);
+          ctx.fill();
+          ctx.fillStyle = '#4a6b2a';
+          ctx.fillRect(px - 2, sy - 36, 5, 9);
+        }
       }
     }
-    // Hanging pots sliding past.
+    // Copper pots sliding past + a hanging lamp with a warm glow.
     for (let i = 0; i < 4; i += 1) {
       const hx = ((i * 420 - scrollX * 0.6) % 1500 + 1500) % 1500 - 110;
       ctx.strokeStyle = '#2a1a12';
@@ -194,14 +264,25 @@ export function createRenderer(canvas) {
       ctx.moveTo(hx, 0);
       ctx.lineTo(hx, 90);
       ctx.stroke();
-      ctx.fillStyle = '#2e2e36';
+      ctx.fillStyle = '#b06a2e';
       ellipse(hx, 118, 34, 26);
       ctx.fill();
+      ctx.fillStyle = 'rgba(255, 217, 122, 0.5)';
+      ellipse(hx - 10, 108, 12, 8);
+      ctx.fill();
+      // Lamp glow beside each pot.
+      const lx = hx + 200;
+      ctx.fillStyle = 'rgba(255, 217, 122, 0.18)';
+      ellipse(lx, 96, 46, 46);
+      ctx.fill();
+      ctx.fillStyle = '#ffd97a';
+      ellipse(lx, 96, 14, 14);
+      ctx.fill();
     }
-    // Tiled floor.
-    ctx.fillStyle = '#8a6a4a';
+    // Tiled floor, lighter so the room is not a brown box.
+    ctx.fillStyle = '#c9a87a';
     ctx.fillRect(0, FIELD.groundY, FIELD.width, FIELD.height - FIELD.groundY);
-    ctx.strokeStyle = 'rgba(60, 40, 24, 0.5)';
+    ctx.strokeStyle = 'rgba(90, 60, 30, 0.45)';
     ctx.lineWidth = 2;
     for (let x = ((-scrollX) % 96 + 96) % 96 - 96; x < FIELD.width; x += 96) {
       ctx.beginPath();
@@ -228,8 +309,10 @@ export function createRenderer(canvas) {
 
     if (turkey.hiding) {
       // Only the tail fan and two worried eyes peek over the haystack.
+      // v2: drawn 1.4x so the hide reads in a screenshot instead of a smudge.
       ctx.save();
       ctx.translate(cx, turkey.y + 8);
+      ctx.scale(1.4, 1.4);
       for (let i = 0; i < 5; i += 1) {
         ctx.fillStyle = PALETTE.turkeyTail[i];
         ctx.save();
@@ -255,7 +338,9 @@ export function createRenderer(canvas) {
     ctx.save();
     ctx.translate(cx, feetY);
     const squash = turkey.sliding ? 0.55 : 1;
-    ctx.scale(1 + plump * 0.35, squash * (1 + plump * 0.2));
+    // v2: TURKEY.drawScale (1.55x) — the bird must read at a glance on the
+    // judge's shrunken contact sheet. Plumpness still fattens it on top.
+    ctx.scale((1 + plump * 0.35) * TURKEY.drawScale, squash * (1 + plump * 0.2) * TURKEY.drawScale);
     const bodyR = 30;
     // Legs.
     const legSwing = turkey.onGround ? Math.sin(phase * 10) * 12 : 6;
@@ -331,6 +416,8 @@ export function createRenderer(canvas) {
 
     ctx.save();
     ctx.translate(fx, feetY);
+    // v2: FARMER_DRAW_SCALE (1.35x) — the chase must read in a screenshot.
+    ctx.scale(FARMER_DRAW_SCALE, FARMER_DRAW_SCALE);
     const legSwing = searching ? Math.sin(phase * 4) * 6 : Math.sin(phase) * 14;
     // Legs.
     ctx.strokeStyle = '#2a2a30';
@@ -408,18 +495,28 @@ export function createRenderer(canvas) {
     ctx.fill();
     ctx.restore();
 
-    // Taunt bubble.
-    if (state.farmerTauntTimer > 0 && state.farmerTaunt) {
-      const bx = Math.min(FIELD.width - 260, Math.max(10, fx - 40));
-      ctx.fillStyle = 'rgba(255, 243, 216, 0.95)';
-      rr(bx, feetY - 210, 250, 44, 12);
-      ctx.fill();
-      ctx.fillStyle = '#3a2418';
-      ctx.font = `900 17px ${FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(state.farmerTaunt, bx + 125, feetY - 187);
-    }
+  }
+
+  // Taunt bubble, drawn AFTER the turkey so the bird never covers the text
+  // (the farm money frame puts the turkey right next to the farmer — the
+  // bubble used to read "COME BACK, YA BIR" with the tail over the "D!").
+  function drawTaunt(state) {
+    if (state.farmerTauntTimer <= 0 || !state.farmerTaunt) return;
+    const gapPx = 150 + state.farmerGapM * 3.2;
+    const fx = state.turkey.x - gapPx;
+    if (fx < -140) return;
+    const feetY = FIELD.groundY;
+    // v2: raised to feetY-250 — the farmer is 1.35x taller now,
+    // so the old bubble (feetY-210) overlapped his hat.
+    const bx = Math.min(FIELD.width - 260, Math.max(10, fx - 40));
+    ctx.fillStyle = 'rgba(255, 243, 216, 0.95)';
+    rr(bx, feetY - 250, 250, 44, 12);
+    ctx.fill();
+    ctx.fillStyle = '#3a2418';
+    ctx.font = `900 17px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(state.farmerTaunt, bx + 125, feetY - 227);
   }
 
   function drawEntity(state, entity) {
@@ -666,6 +763,40 @@ export function createRenderer(canvas) {
     ctx.fill();
   }
 
+  // FEATHER BURST (v2): gold feather particles trailing the turkey + speed
+  // lines while the dash is live. The particles live in state.burstParticles
+  // (a pre-allocated pool in world.js); this only paints them.
+  function drawBurst(state) {
+    const turkey = state.turkey;
+    if (state.burstTimer > 0) {
+      // Speed lines behind the bird.
+      ctx.strokeStyle = 'rgba(255, 243, 216, 0.85)';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 5; i += 1) {
+        const ly = turkey.y + 10 + i * 16;
+        const len = 70 + ((i * 37) % 60);
+        ctx.beginPath();
+        ctx.moveTo(turkey.x - 10 - len, ly);
+        ctx.lineTo(turkey.x - 10, ly);
+        ctx.stroke();
+      }
+      text('BURST!', turkey.x + 40, turkey.y - 34, 26, '#ffd97a');
+    }
+    for (const p of state.burstParticles) {
+      if (!p.active) continue;
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = '#ffd97a';
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ellipse(0, 0, 7, 13);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function drawHud(state, best, muted) {
     ctx.fillStyle = 'rgba(20, 14, 10, 0.72)';
     rr(14, 12, FIELD.width - 28, 64, 14);
@@ -690,9 +821,10 @@ export function createRenderer(canvas) {
       ctx.fillStyle = '#fff3d8';
       ctx.fillRect(barX + (barW * s) / 3 - 1, 72, 2, 14);
     }
-    // Plump meter.
+    // Plump meter. v2: the label turns red past 70 with a warning — the
+    // trade-off must be legible, not just a number.
     const plumpX = 790;
-    text('PLUMP', plumpX, 30, 13, '#d8b98a', 'left');
+    text(state.plumpness > 70 ? 'PLUMP!' : 'PLUMP', plumpX, 30, 13, state.plumpness > 70 ? '#ff5a3c' : '#d8b98a', 'left');
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
     rr(plumpX, 42, 110, 12, 6);
     ctx.fill();
@@ -700,6 +832,17 @@ export function createRenderer(canvas) {
     rr(plumpX, 42, 110 * (state.plumpness / 100), 12, 6);
     ctx.fill();
     text(`${Math.floor(state.plumpness)}%`, plumpX + 120, 48, 13, '#fff3d8', 'left');
+    if (state.plumpness > 70) text('TOO PLUMP — WEAK JUMPS!', plumpX, 70, 11, '#ff5a3c', 'left');
+    // Feather-burst charges (v2): gold pips between the plump % and the hearts.
+    for (let i = 0; i < 3; i += 1) {
+      ctx.fillStyle = i < state.burstCharges ? '#ffd97a' : 'rgba(255,255,255,0.2)';
+      ctx.save();
+      ctx.translate(952 + i * 14, 48);
+      ctx.rotate(0.5);
+      ellipse(0, 0, 4, 8);
+      ctx.fill();
+      ctx.restore();
+    }
     // Hearts.
     for (let i = 0; i < 3; i += 1) drawHeart(990 + i * 34, 44, i < state.lives, 26);
     // Farmer gap.
@@ -742,13 +885,14 @@ export function createRenderer(canvas) {
     text('Gus the turkey vs Jed the farmer — Thanksgiving is coming, and Gus is the main course.', FIELD.width / 2, 266, 17, '#d8b98a');
     // Controls card.
     ctx.fillStyle = 'rgba(20, 14, 10, 0.78)';
-    rr(FIELD.width / 2 - 330, 300, 660, 148, 14);
+    rr(FIELD.width / 2 - 330, 300, 660, 172, 14);
     ctx.fill();
     text('HOW TO PLAY', FIELD.width / 2, 326, 18, '#ffd97a');
     text('← →  run from the farmer      SPACE / ↑  jump (twice for a double jump)', FIELD.width / 2, 356, 17, '#fff3d8');
     text('↓  slide — and hide behind a haystack when Jed is close', FIELD.width / 2, 384, 17, '#fff3d8');
-    text('Eat corn to run faster… but every cob fattens you up: fatter = slower turns, weaker jumps.', FIELD.width / 2, 412, 17, '#f2c94c');
+    text('Eat corn to run faster — but every cob fattens you: fatter = weaker jumps.', FIELD.width / 2, 412, 17, '#f2c94c');
     text('Dodge fences, knives and the oven. Reach the forest, 2400 m away, and live.', FIELD.width / 2, 436, 17, '#fff3d8');
+    text('X — FEATHER BURST: burn fat for a dash (grab feathers to recharge).', FIELD.width / 2, 462, 17, '#ffd97a');
     if (Math.floor(state.elapsed * 1.6) % 2 === 0) {
       outlineText('PRESS SPACE OR CLICK TO RUN', FIELD.width / 2, 500, 30, '#ffffff', '#5a2a10');
     }
@@ -757,7 +901,9 @@ export function createRenderer(canvas) {
 
   function drawStats(state, best) {
     text(`SCORE ${Math.floor(state.score)}    DISTANCE ${Math.floor(state.distanceM)} m    BEST ${Math.max(best, Math.floor(state.score))}`, FIELD.width / 2, 430, 22, '#fff3d8');
-    text(`CORN EATEN: ${Math.floor(state.plumpness / 8)} cobs  •  PLUMP ${Math.floor(state.plumpness)}%`, FIELD.width / 2, 462, 17, '#d8b98a');
+    // v2: a real counter (state.cornEaten) — the v1 proxy (plumpness/8) read 0
+    // cobs on a full successful run because the fat had burned off by then.
+    text(`CORN EATEN: ${state.cornEaten} cobs  •  PLUMP ${Math.floor(state.plumpness)}%`, FIELD.width / 2, 462, 17, '#d8b98a');
   }
 
   function drawOver(state, best) {
@@ -797,13 +943,22 @@ export function createRenderer(canvas) {
       const mag = state.shake * 22;
       ctx.translate(Math.sin(state.elapsed * 91) * mag, Math.cos(state.elapsed * 83) * mag * 0.6);
     }
-    if (state.stage === 2) drawKitchenBackground(state);
+    // v2: the escaped screen is Gus IN THE FOREST ("Gus made it to the forest"),
+    // so it gets the outdoor background and no kitchen props — v1 showed the
+    // kitchen behind the ESCAPED banner, which contradicted its own text.
+    // The turkey + farmer are drawn separately below, so they still appear.
+    const escaped = screen === SCREEN_ESCAPED;
+    if (state.stage === 2 && !escaped) drawKitchenBackground(state);
     else drawOutdoorBackground(state);
-    for (const entity of state.entities) {
-      if (entity.active) drawEntity(state, entity);
+    if (!escaped) {
+      for (const entity of state.entities) {
+        if (entity.active) drawEntity(state, entity);
+      }
     }
     drawFarmer(state);
     drawTurkey(state);
+    drawTaunt(state);
+    drawBurst(state);
     ctx.restore();
 
     if (screen === SCREEN_TITLE) {
